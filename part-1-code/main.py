@@ -37,15 +37,27 @@ def do_train(args, model, train_dataloader, save_dir="./out"):
     model.train()
     progress_bar = tqdm(range(num_training_steps))
 
+
     ################################
     ##### YOUR CODE BEGINGS HERE ###
+    
+    for epoch in range(args.num_epochs):
+        #take batches from dataloader
+        for batch in train_dataloader: 
+            batch = {k: v.to(device) for k, v in batch.items()}
+            
+            #forwards
+            outputs = model(**batch)
+            #save loss
+            loss = outputs.loss
 
-    # Implement the training loop --- make sure to use the optimizer and lr_sceduler (learning rate scheduler)
-    # Remember that pytorch uses gradient accumumlation so you need to use zero_grad (https://pytorch.org/tutorials/recipes/recipes/zeroing_out_gradients.html)
-    # You can use progress_bar.update(1) to see the progress during training
-    # You can refer to the pytorch tutorial covered in class for reference
+            #backwards
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            lr_scheduler.step()
 
-    raise NotImplementedError
+            progress_bar.update(1)
 
     ##### YOUR CODE ENDS HERE ######
 
@@ -88,13 +100,44 @@ def do_eval(eval_dataloader, output_dir, out_file):
 def create_augmented_dataloader(args, dataset):
     ################################
     ##### YOUR CODE BEGINGS HERE ###
+    
+    train_ds = dataset["train"]
 
-    # Here, 'dataset' is the original dataset. You should return a dataloader called 'train_dataloader' -- this
-    # dataloader will be for the original training split augmented with 5k random transformed examples from the training set.
-    # You may find it helpful to see how the dataloader was created at other place in this code.
+    # Sample 5000 random examples
+    random_indices = random.sample(range(len(train_ds)), 5000)
 
-    raise NotImplementedError
+    augmented_texts = []
+    augmented_labels = []
 
+    for idx in random_indices:
+        text = train_ds[idx]["text"]
+        label = train_ds[idx]["label"]
+
+        transformed = custom_transform({"text": text})["text"]
+
+        augmented_texts.append(transformed)
+        augmented_labels.append(label)
+
+    # Combine with original data
+    combined_texts = list(train_ds["text"]) + augmented_texts
+    combined_labels = list(train_ds["label"]) + augmented_labels
+
+    # Build HF dataset
+    augmented_dataset = datasets.Dataset.from_dict({
+        "text": combined_texts,
+        "label": combined_labels
+    })
+
+    # Tokenize
+    augmented_tokenized = augmented_dataset.map(tokenize_function, batched=True)
+    augmented_tokenized = augmented_tokenized.remove_columns(["text"])
+    augmented_tokenized = augmented_tokenized.rename_column("label", "labels")
+    augmented_tokenized.set_format("torch")
+
+    # Create dataloader
+    train_dataloader = DataLoader(augmented_tokenized, shuffle=True, batch_size=args.batch_size)
+
+    
     ##### YOUR CODE ENDS HERE ######
 
     return train_dataloader
