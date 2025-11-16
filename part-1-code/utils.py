@@ -34,40 +34,83 @@ def example_transform(example):
 # You can randomly select each word with some fixed probability to replace by a synonym.
 
 
+# QWERTY neighbors for typo simulation
+qwerty_neighbors = {
+        "a": "qwsz",
+        "b": "vghn",
+        "c": "xdfv",
+        "d": "serfcx",
+        "e": "wsdr",
+        "f": "drtgv",
+        "g": "ftyhbv",
+        "h": "gyujnb",
+        "i": "ujko",
+        "j": "huikm",
+        "k": "jiolm",
+        "l": "kop",
+        "m": "njk",
+        "n": "bhjm",
+        "o": "iklp",
+        "p": "ol",
+        "q": "wa",
+        "r": "edft",
+        "s": "wedxza",
+        "t": "rfgy",
+        "u": "yhji",
+        "v": "cfgb",
+        "w": "qase",
+        "x": "zsdc",
+        "y": "tghu",
+        "z": "asx"
+    }
+
+
 def custom_transform(example):
    
     ################################
     ##### YOUR CODE BEGINGS HERE ###
+   
     text = example["text"]
-
     words = word_tokenize(text)
-    new_words = []
+    detok = TreebankWordDetokenizer()
 
+    new_words = []
     for w in words:
-        # 20% chance of replacement
-        if random.random() < 0.2:
-            syns = wordnet.synsets(w)
+        original = w
+        #replace like 20% with synonyms using wordnet
+        if random.random()< 0.2:
+            synonyms = wordnet.synsets(w)
             lemmas = []
 
-            for syn in syns:
-                for lemma in syn.lemmas():
+            for synonym in synonyms:
+                for lemma in synonym.lemmas():
                     name = lemma.name().replace("_", " ")
                     if name.lower() != w.lower():
                         lemmas.append(name)
 
             if len(lemmas) > 0:
-                new_words.append(random.choice(lemmas))
-                continue
+                w = random.choice(lemmas)
+
+        #introduce typos aruond 10% prob
+        if random.random() < 0.1:
+            #choose a letter position to corrupt if possible
+            chars = list(w)
+            typo_indices = [i for i, c in enumerate(chars) if c.lower() in qwerty_neighbors]
+
+            if len(typo_indices) > 0:
+                idx = random.choice(typo_indices)
+                c = chars[idx].lower()
+                replacement = random.choice(qwerty_neighbors[c])
+                chars[idx] = replacement  # replace letter with neighbor
+                w = "".join(chars)
 
         new_words.append(w)
 
-    transformed_text = TreebankWordDetokenizer().detokenize(new_words)
+    ##now we take new words and reformat them to normal text
+    transformed_text = detok.detokenize(new_words)
 
-    
-    return {
-        "text": transformed_text,
-        "label": example["label"]
-    }
+    example["text"] = transformed_text
+
     ##### YOUR CODE ENDS HERE ######
 
     return example
