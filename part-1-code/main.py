@@ -103,39 +103,38 @@ def create_augmented_dataloader(args, dataset):
     
     train_ds = dataset["train"]
 
-    # Sample 5000 random examples
-    random_indices = random.sample(range(len(train_ds)), 5000)
+    # sample 500 random points
+    sample_indices = random.sample(range(len(train_ds)), 5000)
 
     augmented_texts = []
     augmented_labels = []
 
-    for idx in random_indices:
+    for idx in sample_indices:
+        #trasnform each 5000 data points from train ds to make new data points 
         text = train_ds[idx]["text"]
         label = train_ds[idx]["label"]
 
+        #apply transformation to text and keep label
         transformed = custom_transform({"text": text})["text"]
 
         augmented_texts.append(transformed)
         augmented_labels.append(label)
-
-    # Combine with original data
-    combined_texts = list(train_ds["text"]) + augmented_texts
-    combined_labels = list(train_ds["label"]) + augmented_labels
-
-    # Build HF dataset
+    
     augmented_dataset = datasets.Dataset.from_dict({
-        "text": combined_texts,
-        "label": combined_labels
+        "text": augmented_texts,
+        "label": augmented_labels
     })
 
-    # Tokenize
-    augmented_tokenized = augmented_dataset.map(tokenize_function, batched=True)
-    augmented_tokenized = augmented_tokenized.remove_columns(["text"])
-    augmented_tokenized = augmented_tokenized.rename_column("label", "labels")
-    augmented_tokenized.set_format("torch")
+    # Concatenate with original
+    combined_dataset = datasets.concatenate_datasets([train_ds, augmented_dataset])
 
-    # Create dataloader
-    train_dataloader = DataLoader(augmented_tokenized, shuffle=True, batch_size=args.batch_size)
+    # Tokenize
+    tokenized = combined_dataset.map(tokenize_function, batched=True)
+    tokenized = tokenized.remove_columns(["text"])
+    tokenized = tokenized.rename_column("label", "labels")
+    tokenized.set_format("torch")
+
+    train_dataloader = DataLoader(tokenized, shuffle=True, batch_size=args.batch_size)
 
     
     ##### YOUR CODE ENDS HERE ######
