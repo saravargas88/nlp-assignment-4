@@ -54,12 +54,7 @@ class T5Dataset(Dataset):
         for i, nl in enumerate(X_lines):
             # ------------ PREPROCESS NL ------------
             nl = normalize_nl(nl)
-            nl = delexicalize_text(nl)
-    
-            # Include schema if available
-            if schema_str:
-                nl = f"{schema_str} | question: {nl}"
-
+            
             # ------------ ENCODER ------------
             enc = tokenizer(
                 nl,
@@ -75,7 +70,7 @@ class T5Dataset(Dataset):
     
                 # SQL preprocessing: canonicalize + delexicalize
                 sql = canonicalize_sql(sql)
-                sql = delexicalize_text(sql)
+                
     
                 dec = tokenizer(
                     sql,
@@ -141,13 +136,6 @@ def canonicalize_sql(sql):
 
     return sql
 
-
-def serialize_schema(schema_dict):
-    parts = []
-    for table, cols in schema_dict.items():
-        col_str = ", ".join(cols)
-        parts.append(f"table {table}: {col_str}")
-    return "; ".join(parts)
 
 # ---------------------------------------------
 
