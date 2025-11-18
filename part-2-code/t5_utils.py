@@ -18,9 +18,19 @@ def initialize_model(args):
     Helper function to initialize the model. You should be either finetuning
     the pretrained model associated with the 'google-t5/t5-small' checkpoint
     or training a T5 model initialized with the 'google-t5/t5-small' config
-    from scratch.
-    '''
-    pass
+    from scratch.'''
+    
+    if args.finetune:
+        print("pretrained model loading for finetune")
+        model = T5ForConditionalGeneration.from_pretrained("google-t5/t5-small")
+    else:#scratch extra assingmenty
+        print("config from pretrained but no pretrained model")
+        config = T5Config.from_pretrained("google-t5/t5-small")
+        model = T5ForConditionalGeneration(config)
+
+    model = model.to(DEVICE)
+    
+    return model
 
 def mkdir(dirpath):
     if not os.path.exists(dirpath):
@@ -30,12 +40,43 @@ def mkdir(dirpath):
             pass
 
 def save_model(checkpoint_dir, model, best):
-    # Save model checkpoint to be able to load the model later
-    pass
+    'Save a checkpoint: either the last epoch or the best model so far.'
+
+    #saving file in directory checkpoints
+    os.makedirs(checkpoint_dir, exist_ok=True)
+    if best:
+        filename= "best.pt"
+    else:
+        filename="last.pt"
+        
+    save_path = os.path.join(checkpoint_dir, filename)
+    
+    #save model at this state
+    torch.save(model.state_dict(), save_path)
+    print(f"saved model checkpoint on {save_path}")
+    
 
 def load_model_from_checkpoint(args, best):
-    # Load model from a checkpoint
-    pass
+    """
+    Reload a T5 model from a saved checkpoint.
+    This reinitializes a fresh model, then loads the weights.
+    """
+    if best:
+        filename= "best.pt"
+    else:
+        filename="last.pt"
+
+    
+    checkpoint_dir_path = os.path.join(args.checkpoint_dir, filename)
+
+    # initialize model   
+    model = initialize_model(args)
+
+    # load weights
+    model.load_state_dict(torch.load(checkpoint_dir_path, map_location=DEVICE))
+    model = model.to(DEVICE)
+    
+    return model
 
 def initialize_optimizer_and_scheduler(args, model, epoch_length):
     optimizer = initialize_optimizer(args, model)
